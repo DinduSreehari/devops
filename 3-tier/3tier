@@ -1,0 +1,143 @@
+##Backend server
+
+#To disable  to all nodejs version
+dnf module disable nodejs -y
+
+# To enable  specific nodejs file
+dnf module enable nodejs:20 -y
+
+# To install node:20 version 
+dnf install nodejs -y
+
+#Create user and set password
+useradd expense
+
+password expense 
+#expense
+
+#Create app folder
+mkdir /app
+
+Download the packages
+
+curl -o /app/backend.zip https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
+
+cd /app
+#unzip the folder
+unzip /app/backend.zip
+
+npm install
+
+
+#We need to setup a new service in system
+
+vim /etc/systemd/system/backend.service
+
+[Unit]
+Description = Backend Service
+
+[Service]
+User=expense
+Environment=DB_HOST="localhost"
+ExecStart=/bin/node /app/index.js
+SyslogIdentifier=backend
+
+[Install]
+WantedBy=multi-user.target
+
+
+nohup node index.js > /app/node.log 2>&1 &
+
+systemctl daemon-reload
+systemctl daemon-reload
+systemctl enable backend
+
+
+
+
+
+[root@ip-172-31-5-15 ~]# cat /app/DbConfig.js
+module.exports = Object.freeze({
+    DB_HOST : 'localhost',
+    DB_USER : 'expense',
+    DB_PWD : 'ExpenseApp@1',
+    DB_DATABASE : 'transactions'
+});
+
+
+
+
+###MYSQL installation############
+
+
+
+#install DB
+dnf install mysql-server -y
+systemctl enable mysqld
+systemctl start mysqld
+
+#password store in path
+grep 'temporary password' /var/log/mysqld.log
+
+mysql_secure_installation --set-root-pass ExpenseApp@1
+
+
+
+
+ALTER USER 'expense'@'localhost' IDENTIFIED BY 'ExpenseApp@1';
+FLUSH PRIVILEGES;
+EXIT;
+
+CREATE DATABASE transactions;
+SELECT user, host FROM mysql.user;
+
+ALTER USER 'expense'@'localhost' IDENTIFIED BY 'ExpenseApp@1';
+
+GRANT ALL PRIVILEGES ON expense.* TO 'expense'@'localhost';
+
+FLUSH PRIVILEGES;
+
+EXIT;
+
+to test connection
+mysql -h <host-address> -u root -p<password>
+password
+
+show databases;
+show tables;
+select * from transactions;
+
+
+####Frent end server############
+
+dnf install nginx -y 
+
+systemctl enable nginx
+systemctl start nginx
+
+rm -rf /usr/share/nginx/html/*
+
+curl -o /tmp/frontend.zip https://expense-builds.s3.us-east-1.amazonaws.com/expense-frontend-v2.zip
+cd /usr/share/nginx/html
+
+unzip /tmp/frontend.zip
+
+
+vim /etc/nginx/default.d/expense.conf
+
+
+proxy_http_version 1.1;
+
+location /api/ { proxy_pass http://serverip:8080/; }
+
+location /health {
+  stub_status on;
+  access_log off;
+}
+
+
+systemctl restart nginx
+
+
+
+
